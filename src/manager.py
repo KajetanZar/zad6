@@ -70,5 +70,56 @@ class Manager:
                 total_due_pln=apartment_settlement.total_due_pln / len(tenants_in_apartment)
             )
         for tenant in tenants_in_apartment ] 
+
+    def _get_monthly_tenant_balances(self, year: int, month: int) -> List[TenantSettlement]:
+        if month < 1 or month > 12:
+            raise ValueError("Month must be between 1 and 12")
+
+        przelewy_po_najemcy = {}
+        for przelew in self.transfers:
+            if przelew.settlement_year == year and przelew.settlement_month == month:
+                przelewy_po_najemcy[przelew.tenant] = przelewy_po_najemcy.get(przelew.tenant, 0.0) + przelew.amount_pln
+
+        najemcy_po_mieszkaniu = {}
+        for tenant in self.tenants.values():
+            najemcy_po_mieszkaniu.setdefault(tenant.apartment, []).append(tenant)
+
+        saldo_najemcow: List[TenantSettlement] = []
+        for tenant_key, tenant in self.tenants.items():
+            suma_kosztow = self.get_apartment_costs(tenant.apartment, year, month) or 0.0
+            najemcy_w_mieszkaniu = najemcy_po_mieszkaniu.get(tenant.apartment, [])
+            udzial_kosztow = suma_kosztow / len(najemcy_w_mieszkaniu) if najemcy_w_mieszkaniu else 0.0
+            kwota_do_zaplaty = tenant.rent_pln + udzial_kosztow
+            suma_przelewow = przelewy_po_najemcy.get(tenant_key, 0.0)
+            saldo_pln = kwota_do_zaplaty - suma_przelewow
+
+            saldo_najemcow.append(
+                TenantSettlement(
+                    tenant=tenant.name,
+                    apartment_settlement=f"{tenant.apartment}-{year}-{month}",
+                    month=month,
+                    year=year,
+                    total_due_pln=kwota_do_zaplaty,
+                    total_transfers_pln=suma_przelewow,
+                    balance_pln=saldo_pln
+                )
+            )
+
+        return saldo_najemcow
+
+    def get_debtors_for_month(self, year: int, month: int) -> List[TenantSettlement]:
+        monthly_balances = self._get_monthly_tenant_balances(year, month)
+        return [balance for balance in monthly_balances if balance.balance_pln > 0]
+
+    def get_annual_financial_summary(self, year: int) -> dict[str, float]:
+        suma_rachunkow = sum(rachunek.amount_pln for rachunek in self.bills if rachunek.settlement_year == year)
+        suma_przelewow = sum(przelew.amount_pln for przelew in self.transfers if przelew.settlement_year == year)
+
+        return {
+            "year": year,
+            "total_bills_pln": suma_rachunkow,
+            "total_transfers_pln": suma_przelewow,
+            "balance_pln": suma_przelewow - suma_rachunkow
+        }
     
     
