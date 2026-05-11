@@ -111,6 +111,34 @@ class Manager:
         monthly_balances = self._get_monthly_tenant_balances(year, month)
         return [balance for balance in monthly_balances if balance.balance_pln > 0]
 
+    def get_debtors(self, apartment_key: str, month: int, year: int) -> List[TenantSettlement]:
+        if month < 1 or month > 12:
+            raise ValueError("przdial 1 a 12")
+        if apartment_key not in self.apartments:
+            return []
+        
+        tenants_in_apartment = [(key, tenant) for key, tenant in self.tenants.items() if tenant.apartment == apartment_key]
+        
+        przelewy_po_najemcy = {}
+        for przelew in self.transfers:
+            if przelew.settlement_year == year and przelew.settlement_month == month:
+                przelewy_po_najemcy[przelew.tenant] = przelewy_po_najemcy.get(przelew.tenant, 0.0) + przelew.amount_pln
+        
+        debtors = []
+        for key, tenant in tenants_in_apartment:
+            suma_przelewow = przelewy_po_najemcy.get(key, 0.0)
+            if suma_przelewow < tenant.rent_pln:
+                debtors.append(TenantSettlement(
+                    tenant=tenant.name,
+                    apartment_settlement=f"{apartment_key}-{year}-{month}",
+                    month=month,
+                    year=year,
+                    total_due_pln=tenant.rent_pln,
+                    total_transfers_pln=suma_przelewow,
+                    balance_pln=tenant.rent_pln - suma_przelewow
+                ))
+        return debtors
+
     def get_annual_financial_summary(self, year: int) -> dict[str, float]:
         suma_rachunkow = sum(rachunek.amount_pln for rachunek in self.bills if rachunek.settlement_year == year)
         suma_przelewow = sum(przelew.amount_pln for przelew in self.transfers if przelew.settlement_year == year)

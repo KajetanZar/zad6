@@ -56,3 +56,21 @@ def test_get_tax_rounds_to_whole_zloty():
     tax = manager.get_tax(2025, 1, 0.085)
 
     assert tax == 638
+
+
+def test_get_debtors():
+    manager = Manager(Parameters())
+    # Modify transfers to simulate debtors
+    manager.transfers = [transfer for transfer in manager.transfers if transfer.tenant == 'tenant-1']
+
+    apartment_key = 'apart-polanka'
+    year = 2025
+    month = 1
+
+    debtors = manager.get_debtors(apartment_key, month, year)
+    debtor_names = {debtor.tenant for debtor in debtors}
+
+    assert debtor_names == {'Adam Kowalski', 'Ewa Adamska'}
+    assert all(debtor.balance_pln > 0 for debtor in debtors)
+    assert all(debtor.month == 1 and debtor.year == 2025 for debtor in debtors)
+    assert all(debtor.apartment_settlement == f"{apartment_key}-{year}-{month}" for debtor in debtors)
