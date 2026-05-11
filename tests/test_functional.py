@@ -1,7 +1,7 @@
 import pytest
 from src.manager import Manager
 from src.models import Parameters 
-def test_apartment_bill_and_tenant_shares_match(): 
+def test_kwota_porownanie(): 
     manager = Manager(Parameters()) 
     apartment_key = 'apart-polanka' 
     year = 2025 
@@ -20,7 +20,7 @@ def test_apartment_bill_and_tenant_shares_match():
     assert all(ts.total_due_pln == apartment_total / len(tenant_settlements) for ts in tenant_settlements)
 
 
-def test_get_monthly_debtors_report_returns_only_overdue_tenants():
+def test_z_kwotami_zadluzonymi():
     manager = Manager(Parameters())
     manager.transfers = [transfer for transfer in manager.transfers if transfer.tenant == 'tenant-1']
 
@@ -32,7 +32,7 @@ def test_get_monthly_debtors_report_returns_only_overdue_tenants():
     assert all(debtor.month == 1 and debtor.year == 2025 for debtor in debtors)
 
 
-def test_get_annual_financial_summary_returns_totals_for_given_year():
+def test_get_annual_financial_summary():
     manager = Manager(Parameters())
     summary = manager.get_annual_financial_summary(2025)
 
@@ -42,3 +42,17 @@ def test_get_annual_financial_summary_returns_totals_for_given_year():
         'total_transfers_pln': 7500.0,
         'balance_pln': 6590.0
     }
+
+
+def test_get_tax():
+    manager = Manager(Parameters())
+    tax = manager.get_tax(2025, 1, 0.2)
+
+    assert tax == 1500
+
+
+def test_get_tax_rounds_to_whole_zloty():
+    manager = Manager(Parameters())
+    tax = manager.get_tax(2025, 1, 0.085)
+
+    assert tax == 638

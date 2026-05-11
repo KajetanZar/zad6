@@ -122,4 +122,12 @@ class Manager:
             "balance_pln": suma_przelewow - suma_rachunkow
         }
     
-    
+    def get_tax(self, year: int, month: int, tax_rate: float) -> int:
+        if month < 1 or month > 12:
+            raise ValueError("Miesiac musi byc w przedziale 1 a 12")
+        if tax_rate < 0 or tax_rate > 1:
+            raise ValueError("musi byc pomiedzy 0 a 1")
+        
+        total_revenue = sum(transfer.amount_pln for transfer in self.transfers if transfer.settlement_year == year and transfer.settlement_month == month)
+        tax_amount = total_revenue * tax_rate
+        return int(tax_amount + 0.5)
